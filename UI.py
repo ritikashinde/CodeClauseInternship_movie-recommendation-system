@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import speech_recognition as sr
 import json
 from datetime import datetime
 
@@ -54,20 +53,8 @@ if st.button("Recommend"):
     for title in recommended['title'].values:
         st.markdown(f"- {title}")
 
-    
+    # Save recommendation history
     save_history(user_id, recommended['title'].tolist())
-
-if st.button("Use Voice Input"):
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.write("Listening...")
-        audio = recognizer.listen(source)
-
-    try:
-        text = recognizer.recognize_google(audio)
-        st.write(f"You said: {text}")
-    except Exception as e:
-        st.error("Sorry, I couldn't understand.")
 
 st.markdown("**Why these movies?**")
 st.caption("These are based on your past ratings and similar user preferences.")
