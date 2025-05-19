@@ -15,6 +15,7 @@ https://codeclauseinternshipmovie-recommendation-system.streamlit.app/
 
 ## Demo
 https://codeclauseinternshipmovie-recommendation-system.streamlit.app/
+
 Click the button, speak or select your mood, and get movie recommendations tailored just for you!
 
 ---
@@ -22,4 +23,5 @@ Click the button, speak or select your mood, and get movie recommendations tailo
 Clone the repo:
 
 git clone https://github.com/ritikashinde/CodeClauseInternship_movie-recommendation-system.git
+
 cd CodeClauseInternship_movie-recommendation-system
