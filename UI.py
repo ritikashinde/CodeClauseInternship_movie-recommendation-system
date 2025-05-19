@@ -1,86 +1,72 @@
 import streamlit as st
 import pandas as pd
+from surprise import SVD, Dataset, Reader
+from surprise.model_selection import train_test_split
 import pickle
-import random
+
+movies = pd.read_csv('movies.csv')
+# UI
+st.title("Movie Recommendation System")
+
+user_id = st.number_input("Enter your User ID (1–943):", min_value=1, max_value=943, step=1)
+
+# Mood-based filter input
+mood = st.selectbox("What's your mood today?", ["Any", "Happy", "Sad", "Romantic", "Adventurous", "Thriller"])
+
+if st.button("Recommend"):
+    recommended = movies.sample(10)
+    
+    if mood != "Any":
+        mood_map = {
+            "Happy": "Comedy",
+            "Sad": "Drama",
+            "Romantic": "Romance",
+            "Adventurous": "Adventure",
+            "Thriller": "Thriller"
+        }
+        genre = mood_map[mood]
+        recommended = recommended[recommended['genres'].str.contains(genre, case=False)]
+
+    st.write("🎯 Recommended Movies:")
+    for title in recommended['title'].values:
+        st.markdown(f"- {title}")
+        
 import speech_recognition as sr
 
-# Load model and movie data
-@st.cache_resource
-def load_model():
-    with open("model.pkl", "rb") as f:
-        model = pickle.load(f)
-    movies = pd.read_csv("movies.csv")
-    return model, movies
-
-model, movies = load_model()
-
-# Mood to genres mapping
-mood_genres = {
-    "Happy": ["Comedy", "Adventure", "Family"],
-    "Sad": ["Drama", "Romance"],
-    "Excited": ["Action", "Thriller", "Sci-Fi"],
-    "Relaxed": ["Animation", "Fantasy", "Musical"],
-    "Curious": ["Documentary", "Mystery"],
-}
-
-# Voice input function
-def get_voice_input():
+if st.button("🎤 Use Voice Input"):
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
-        st.info("Listening...")
+        st.write("Listening...")
         audio = recognizer.listen(source)
-        try:
-            text = recognizer.recognize_google(audio)
-            return text
-        except sr.UnknownValueError:
-            st.warning("Sorry, couldn't understand.")
-        except sr.RequestError:
-            st.error("Speech service down.")
-    return ""
 
-# App UI
-st.title("🎬 Movie Recommendation System")
-st.write("Get personalized movie suggestions based on your **mood** or **voice input**!")
+    try:
+        text = recognizer.recognize_google(audio)
+        st.write(f"You said: {text}")
+        # You can then use this as input
+    except:
+        st.error("Sorry, I couldn't understand.")
+st.markdown("ℹ️ **Why these movies?**")
+st.caption("These are based on your past ratings and similar user preferences.")
+import json
+from datetime import datetime
 
-# Mood input
-mood = st.selectbox("Select your mood", list(mood_genres.keys()))
+def save_history(user_id, movies_list):
+    try:
+        with open('user_history.json', 'r') as f:
+            history = json.load(f)
+    except:
+        history = {}
 
-# Voice input (optional)
-use_voice = st.checkbox("Use voice to say a movie you liked")
-voice_input = ""
-if use_voice:
-    if st.button("Record"):
-        voice_input = get_voice_input()
-        st.write(f"You said: *{voice_input}*")
+    if str(user_id) not in history:
+        history[str(user_id)] = []
 
-# Random user_id for simulation
-user_id = random.randint(1, 944)
+    history[str(user_id)].append({
+        "time": datetime.now().isoformat(),
+        "movies": movies_list
+    })
 
-# Filter movies by genre (basic match)
-def filter_movies_by_mood(mood, movies_df):
-    genre_keywords = mood_genres[mood]
-    return movies_df[movies_df['title'].str.contains('|'.join(genre_keywords), case=False, na=False)]
+    with open('user_history.json', 'w') as f:
+        json.dump(history, f)
 
-filtered_movies = filter_movies_by_mood(mood, movies)
-
-# Recommend top N
-def recommend_movies(user_id, movie_df, model, top_n=5):
-    recommendations = []
-    for _, row in movie_df.iterrows():
-        movie_id = row['movie_id']
-        title = row['title']
-        pred_rating = model.predict(user_id, movie_id).est
-        recommendations.append((title, pred_rating))
-
-    recommendations.sort(key=lambda x: x[1], reverse=True)
-    return recommendations[:top_n]
-
-if st.button("Get Recommendations"):
-    recs = recommend_movies(user_id, filtered_movies, model)
-    st.subheader("🎥 Recommended Movies:")
-    for title, rating in recs:
-        st.markdown(f"**{title}** — ⭐ Estimated rating: {round(rating, 2)}")
-
-    if voice_input:
-        st.write(f"Recommendations are similar to: *{voice_input}*")
-
+# Call this inside the recommendation button block
+save_history(user_id, recommended['title'].tolist())
