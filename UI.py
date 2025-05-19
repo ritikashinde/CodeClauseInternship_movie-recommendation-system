@@ -1,54 +1,16 @@
 import streamlit as st
 import pandas as pd
-from surprise import SVD, Dataset, Reader
-from surprise.model_selection import train_test_split
-import pickle
+import speech_recognition as sr
+import json
+from datetime import datetime
 
 movies = pd.read_csv('movies.csv')
-# UI
+
 st.title("Movie Recommendation System")
 
 user_id = st.number_input("Enter your User ID (1–943):", min_value=1, max_value=943, step=1)
 
-# Mood-based filter input
 mood = st.selectbox("What's your mood today?", ["Any", "Happy", "Sad", "Romantic", "Adventurous", "Thriller"])
-
-if st.button("Recommend"):
-    recommended = movies.sample(10)
-    
-    if mood != "Any":
-        mood_map = {
-            "Happy": "Comedy",
-            "Sad": "Drama",
-            "Romantic": "Romance",
-            "Adventurous": "Adventure",
-            "Thriller": "Thriller"
-        }
-        genre = mood_map[mood]
-        recommended = recommended[recommended['genres'].str.contains(genre, case=False)]
-
-    st.write("🎯 Recommended Movies:")
-    for title in recommended['title'].values:
-        st.markdown(f"- {title}")
-        
-import speech_recognition as sr
-
-if st.button("🎤 Use Voice Input"):
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.write("Listening...")
-        audio = recognizer.listen(source)
-
-    try:
-        text = recognizer.recognize_google(audio)
-        st.write(f"You said: {text}")
-        # You can then use this as input
-    except:
-        st.error("Sorry, I couldn't understand.")
-st.markdown("ℹ️ **Why these movies?**")
-st.caption("These are based on your past ratings and similar user preferences.")
-import json
-from datetime import datetime
 
 def save_history(user_id, movies_list):
     try:
@@ -68,5 +30,44 @@ def save_history(user_id, movies_list):
     with open('user_history.json', 'w') as f:
         json.dump(history, f)
 
-# Call this inside the recommendation button block
-save_history(user_id, recommended['title'].tolist())
+mood_map = {
+    "Happy": "Comedy",
+    "Sad": "Drama",
+    "Romantic": "Romance",
+    "Adventurous": "Adventure",
+    "Thriller": "Thriller"
+}
+
+if st.button("Recommend"):
+    filtered_movies = movies
+    if mood != "Any":
+        genre = mood_map[mood]
+        filtered_movies = movies[movies['genres'].str.contains(genre, case=False)]
+
+    if len(filtered_movies) == 0:
+        st.warning("No movies found for this mood. Showing random movies instead.")
+        recommended = movies.sample(10)
+    else:
+        recommended = filtered_movies.sample(min(10, len(filtered_movies)))
+
+    st.write("Recommended Movies:")
+    for title in recommended['title'].values:
+        st.markdown(f"- {title}")
+
+    
+    save_history(user_id, recommended['title'].tolist())
+
+if st.button("Use Voice Input"):
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.write("Listening...")
+        audio = recognizer.listen(source)
+
+    try:
+        text = recognizer.recognize_google(audio)
+        st.write(f"You said: {text}")
+    except Exception as e:
+        st.error("Sorry, I couldn't understand.")
+
+st.markdown("**Why these movies?**")
+st.caption("These are based on your past ratings and similar user preferences.")
